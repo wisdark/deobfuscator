@@ -41,7 +41,6 @@ public class MethodExecutor {
     private static final boolean DEBUG_PRINT_EXCEPTIONS;
     private static final List<String> DEBUG_CLASSES;
     private static final List<String> DEBUG_METHODS_WITH_DESC;
-    public static final Map<AbstractInsnNode, BiFunction<List<JavaValue>, Context, JavaValue>> customMethodFunc;
 
     static {
         VERIFY = false;
@@ -49,7 +48,6 @@ public class MethodExecutor {
         DEBUG_PRINT_EXCEPTIONS = false;
         DEBUG_CLASSES = Arrays.asList();
         DEBUG_METHODS_WITH_DESC = Arrays.asList();
-        customMethodFunc = new HashMap<>();
     }
 
     public static <T> T execute(ClassNode classNode, MethodNode method, List<JavaValue> args, Object instance, Context context) {
@@ -1183,9 +1181,9 @@ public class MethodExecutor {
                         }
                         convertArgs(args, Type.getArgumentTypes(cast.desc));
                         args.add(stack.remove(0));
-                        if(customMethodFunc.containsKey(now))
+                        if(context.customMethodFunc.containsKey(now))
                         {
-                        	JavaValue res = customMethodFunc.get(now).apply(args, context);
+                        	JavaValue res = context.customMethodFunc.get(now).apply(args, context);
                         	if(type.getSort() == Type.VOID)
                         		break;
                         	stack.add(0, res);
@@ -1247,7 +1245,7 @@ public class MethodExecutor {
                                         	break;
                                     }
                                 } else {
-                                    throw new NoSuchMethodHandlerException("Could not find invoker for " + args.get(args.size() - 1).type() + " " + cast.name + cast.desc).setThrownFromInvoke(true);
+                                    throw new NoSuchMethodHandlerException("Could not find invoker for " + args.get(args.size() - 1).type() + " " + cast.owner + " " + cast.name + cast.desc).setThrownFromInvoke(true);
                                 }
                                 break;
                             } catch (NoSuchMethodHandlerException | IllegalArgumentException t) {
@@ -1283,9 +1281,9 @@ public class MethodExecutor {
                         }
                         convertArgs(args, Type.getArgumentTypes(cast.desc));
                         args.add(stack.remove(0));
-                        if(customMethodFunc.containsKey(now))
+                        if(context.customMethodFunc.containsKey(now))
                         {
-                        	JavaValue res = customMethodFunc.get(now).apply(args, context);
+                        	JavaValue res = context.customMethodFunc.get(now).apply(args, context);
                         	if(type.getSort() == Type.VOID)
                         		break;
                         	stack.add(0, res);
@@ -1382,9 +1380,9 @@ public class MethodExecutor {
                             args.add(0, stack.remove(0).copy());
                         }
                         convertArgs(args, Type.getArgumentTypes(cast.desc));
-                        if(customMethodFunc.containsKey(now))
+                        if(context.customMethodFunc.containsKey(now))
                         {
-                        	JavaValue res = customMethodFunc.get(now).apply(args, context);
+                        	JavaValue res = context.customMethodFunc.get(now).apply(args, context);
                         	if(type.getSort() == Type.VOID)
                         		break;
                         	stack.add(0, res);
@@ -1464,9 +1462,9 @@ public class MethodExecutor {
                         }
                         convertArgs(args, Type.getArgumentTypes(cast.desc));
                         args.add(stack.remove(0));
-                        if(customMethodFunc.containsKey(now))
+                        if(context.customMethodFunc.containsKey(now))
                         {
-                        	JavaValue res = customMethodFunc.get(now).apply(args, context);
+                        	JavaValue res = context.customMethodFunc.get(now).apply(args, context);
                         	if(type.getSort() == Type.VOID)
                         		break;
                         	stack.add(0, res);
@@ -1575,12 +1573,12 @@ public class MethodExecutor {
                                     break;
                             }
                         }else {
-                            throw new NoSuchMethodHandlerException("Could not find invoker for " + args.get(args.size() - 1).type() + " " + cast.name + cast.desc).setThrownFromInvoke(true);
+                            throw new NoSuchMethodHandlerException("Could not find invoker for " + args.get(args.size() - 1).type() + " " + cast.owner + " " + cast.name + cast.desc).setThrownFromInvoke(true);
                         }
                         break;
                     }
                     case INVOKEDYNAMIC: {
-                    	if(customMethodFunc.containsKey(now))
+                    	if(context.customMethodFunc.containsKey(now))
                         {
                     		InvokeDynamicInsnNode cast = (InvokeDynamicInsnNode)now;
                     		List<JavaValue> args = new ArrayList<>();
@@ -1629,7 +1627,7 @@ public class MethodExecutor {
 	                            newArgs.add(0, stack.remove(0).copy());
 	                        }
 							args.addAll(newArgs);
-                        	JavaValue res = customMethodFunc.get(now).apply(args, context);
+                        	JavaValue res = context.customMethodFunc.get(now).apply(args, context);
                         	if(Type.getReturnType(cast.desc).getSort() == Type.VOID)
                         		break;
                         	stack.add(0, res);
@@ -1745,11 +1743,11 @@ public class MethodExecutor {
                         break;
                     }
                     case MONITORENTER: {
-                        Monitor.enter(stack.remove(0));
+                        context.monitor.enter(stack.remove(0));
                         break;
                     }
                     case MONITOREXIT: {
-                        Monitor.exit(stack.remove(0));
+                        context.monitor.exit(stack.remove(0));
                         break;
                     }
                     case MULTIANEWARRAY: {

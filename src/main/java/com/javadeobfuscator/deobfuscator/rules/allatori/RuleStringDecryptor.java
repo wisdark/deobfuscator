@@ -18,19 +18,19 @@ package com.javadeobfuscator.deobfuscator.rules.allatori;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Set;
 
 import com.javadeobfuscator.deobfuscator.Deobfuscator;
 import com.javadeobfuscator.deobfuscator.rules.Rule;
 import com.javadeobfuscator.deobfuscator.transformers.Transformer;
 import com.javadeobfuscator.deobfuscator.transformers.allatori.string.StringEncryptionTransformer;
 import com.javadeobfuscator.deobfuscator.utils.TransformerHelper;
-import org.assertj.core.internal.asm.Opcodes;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Analyzer;
-import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.Frame;
 import org.objectweb.asm.tree.analysis.SourceInterpreter;
 import org.objectweb.asm.tree.analysis.SourceValue;
@@ -48,44 +48,45 @@ public class RuleStringDecryptor implements Rule {
             for (MethodNode methodNode : classNode.methods) {
                 Frame<SourceValue>[] frames = null;
                 for (AbstractInsnNode ain : TransformerHelper.instructionIterator(methodNode)) {
-                    if (ain.getOpcode() == Opcodes.INVOKESTATIC) {
-                        MethodInsnNode m = (MethodInsnNode) ain;
-                        String strCl = m.owner;
-                        if ((m.desc.equals("(Ljava/lang/Object;)Ljava/lang/String;") || m.desc.equals("(Ljava/lang/String;)Ljava/lang/String;"))
-                            && deobfuscator.getClasses().containsKey(strCl)) {
-                            ClassNode innerClassNode = deobfuscator.getClasses().get(strCl);
-                            MethodNode decryptorNode = innerClassNode.methods.stream()
-                                    .filter(mn -> mn.name.equals(m.name) && mn.desc.equals(m.desc))
-                                    .findFirst().orElse(null);
-                            if (decryptorNode == null || decryptorNode.instructions == null) {
-                                continue;
-                            }
-                            boolean isAllatori = true;
+                    if (ain.getOpcode() != Opcodes.INVOKESTATIC) {
+                        continue;
+                    }
+                    MethodInsnNode m = (MethodInsnNode) ain;
+                    String strCl = m.owner;
+                    if (!m.desc.equals("(Ljava/lang/Object;)Ljava/lang/String;") && !m.desc.equals("(Ljava/lang/String;)Ljava/lang/String;")) {
+                        continue;
+                    }
+                    if (!deobfuscator.getClasses().containsKey(strCl)) {
+                        continue;
+                    }
+                    ClassNode innerClassNode = deobfuscator.getClasses().get(strCl);
+                    MethodNode decryptorNode = innerClassNode.methods.stream()
+                            .filter(mn -> mn.name.equals(m.name) && mn.desc.equals(m.desc))
+                            .findFirst().orElse(null);
+                    if (decryptorNode == null || decryptorNode.instructions == null) {
+                        continue;
+                    }
 
-                            isAllatori = isAllatori && TransformerHelper.containsInvokeVirtual(decryptorNode, "java/lang/String", "charAt", "(I)C");
-                            isAllatori = isAllatori && TransformerHelper.containsInvokeVirtual(decryptorNode, "java/lang/String", "length", "()I");
-                            isAllatori = isAllatori && TransformerHelper.countOccurencesOf(decryptorNode, IXOR) > 2;
-                            isAllatori = isAllatori && TransformerHelper.countOccurencesOf(decryptorNode, NEWARRAY) > 0;
+                    if (!com.javadeobfuscator.deobfuscator.transformers.allatori.StringEncryptionTransformer.isAllatoriMethod(decryptorNode)) {
+                        continue;
+                    }
 
-                            if (!isAllatori) {
-                                continue;
+                    if (frames == null) {
+                        try {
+                            frames = new Analyzer<>(new SourceInterpreter()).analyze(classNode.name, methodNode);
+                        } catch (Exception e) {
+                            if (deobfuscator.getConfig().isDebugRulesAnalyzer()) {
+                                e.printStackTrace();
                             }
-
-                            if (frames == null) {
-                                try {
-                                    frames = new Analyzer<>(new SourceInterpreter()).analyze(classNode.name, methodNode);
-                                } catch (AnalyzerException e) {
-                                    continue;
-                                }
-                            }
-                            Frame<SourceValue> f = frames[methodNode.instructions.indexOf(m)];
-                            if (f.getStack(f.getStackSize() - 1).insns.size() != 1
-                                || f.getStack(f.getStackSize() - 1).insns.iterator().next().getOpcode() != Opcodes.LDC) {
-                                continue;
-                            }
-                            return "Found possible string decryption class " + innerClassNode.name;
+                            continue;
                         }
                     }
+                    Frame<SourceValue> f = frames[methodNode.instructions.indexOf(m)];
+                    Set<AbstractInsnNode> insns = f.getStack(f.getStackSize() - 1).insns;
+                    if (insns.size() != 1 || insns.iterator().next().getOpcode() != Opcodes.LDC) {
+                        continue;
+                    }
+                    return "Found possible string decryption class " + innerClassNode.name;
                 }
             }
         }

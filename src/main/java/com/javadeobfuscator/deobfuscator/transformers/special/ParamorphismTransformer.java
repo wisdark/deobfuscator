@@ -23,8 +23,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 
-import org.assertj.core.internal.asm.Opcodes;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
 import org.objectweb.asm.tree.analysis.Analyzer;
@@ -101,7 +101,7 @@ public class ParamorphismTransformer extends Transformer<TransformerConfig>
             }
         });
 		System.out.println("[Special] [ParamorphismTransformer] Starting");
-		if(getDeobfuscator().invaildClasses.isEmpty() && !OVERRIDE)
+		if(getDeobfuscator().invalidClasses.isEmpty() && !OVERRIDE)
 		{
 			System.out.println("[Special] [ParamorphismTransformer] Paramorphism not found or option not enabled. Exiting");
 			return false;

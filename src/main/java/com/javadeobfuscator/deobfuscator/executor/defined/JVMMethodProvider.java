@@ -41,7 +41,6 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import com.javadeobfuscator.deobfuscator.executor.ThreadStore;
 import com.javadeobfuscator.deobfuscator.executor.defined.types.*;
 import com.javadeobfuscator.deobfuscator.executor.exceptions.ExecutionException;
 import com.javadeobfuscator.deobfuscator.executor.values.*; 
@@ -63,7 +62,7 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
 
 public class JVMMethodProvider extends MethodProvider {
-    @SuppressWarnings("serial")
+    @SuppressWarnings({"serial", "CloneableClassWithoutClone"})
     //@formatter:off
     private static final Map<String, Map<String, Function3<JavaValue, List<JavaValue>, Context, Object>>> functions = new HashMap<String, Map<String, Function3<JavaValue, List<JavaValue>, Context, Object>>>() {{
         // Java
@@ -97,13 +96,6 @@ public class JVMMethodProvider extends MethodProvider {
                 expect(targetObject, targetObject.type()); 
                 targetObject.initialize(new JavaObject(null, targetObject.type())); 
                 initObject(context, targetObject.type(), targetObject); 
-                return null;
-            });
-        }});
-        put("java/util/zip/ZipInputStream", new HashMap<String, Function3<JavaValue, List<JavaValue>, Context, Object>>() {{
-            put("<init>(Ljava/io/InputStream;)V", (targetObject, args, context) -> {
-                System.out.println("New ZipInputStream with " + args.get(0).value());
-                targetObject.initialize(new ZipInputStream(args.get(0).as(InputStream.class)));
                 return null;
             });
         }});
@@ -647,7 +639,7 @@ public class JVMMethodProvider extends MethodProvider {
                 targetObject.as(JavaThread.class).start();
                 return null;
             });
-            put("currentThread()Ljava/lang/Thread;", (targetObject, args, context) -> ThreadStore.retrieveThread(Thread.currentThread().getId()));
+            put("currentThread()Ljava/lang/Thread;", (targetObject, args, context) -> context.threadStore.retrieveThread(Thread.currentThread().getId()));
             put("getId()J", (targetObject, args, context) -> targetObject.as(JavaThread.class).getThread().getId());
             put("getStackTrace()[Ljava/lang/StackTraceElement;", (targetObject, args, context) -> {
                 context.push("java.lang.Thread", "getStackTrace", 0);
